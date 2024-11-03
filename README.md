@@ -57,8 +57,6 @@ To use the Voting DApp, follow these simple steps:
 
 - Open the Voting DApp in your browser and connect your MetaMask wallet by clicking on the "Connect Wallet" button.
 
-![Step 3: Connect Your Wallet]
-
 ### Step 4: Select an Option to Vote
 
 - Browse the available voting options presented in the DApp interface.
