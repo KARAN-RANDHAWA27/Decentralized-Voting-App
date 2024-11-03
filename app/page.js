@@ -1,101 +1,205 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from "react";
+import Web3 from "web3";
+
+const contractAddress = "0xD6083E5226CCC74E730D9175286DA7E2025F83Cf";
+const contractABI = [
+  {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "option",
+        type: "string",
+      },
+    ],
+    name: "vote",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "option",
+        type: "string",
+      },
+    ],
+    name: "getVoteCount",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getAvailableOptions",
+    outputs: [
+      {
+        internalType: "string[]",
+        name: "",
+        type: "string[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "option",
+        type: "string",
+      },
+    ],
+    name: "validOption",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+];
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [web3, setWeb3] = useState(null);
+  const [account, setAccount] = useState("");
+  const [contract, setContract] = useState(null);
+  const [options, setOptions] = useState([]);
+  const [voteCounts, setVoteCounts] = useState({});
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  useEffect(() => {
+    const init = async () => {
+      if (window.ethereum) {
+        const web3Instance = new Web3(window.ethereum);
+        try {
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          const accounts = await web3Instance.eth.getAccounts();
+          if (accounts.length > 0) {
+            const contractInstance = new web3Instance.eth.Contract(
+              contractABI,
+              contractAddress
+            );
+            setAccount(accounts[0]);
+            setContract(contractInstance);
+            try {
+              const optionsFromContract = await contractInstance.methods
+                .getAvailableOptions()
+                .call();
+              setOptions(optionsFromContract);
+              const counts = {};
+              for (const option of optionsFromContract) {
+                const count = await contractInstance.methods
+                  .getVoteCount(option)
+                  .call();
+                counts[option] = count;
+              }
+              setVoteCounts(counts);
+            } catch (err) {
+              setErrorMessage("Error fetching options from contract.");
+            }
+          } else {
+            setErrorMessage("No accounts found. Please connect your wallet.");
+          }
+        } catch (error) {
+          setErrorMessage(
+            `Please allow access to your wallet: ${error.message}`
+          );
+        }
+      } else {
+        setErrorMessage("Please install MetaMask!");
+      }
+    };
+
+    init();
+  }, []);
+
+  const handleVote = async () => {
+    const optionInput = document.getElementById("voteOption");
+    const option = optionInput.value;
+    if (!contract || !option) {
+      setErrorMessage("Contract is not initialized or option is empty");
+      return;
+    }
+    try {
+      setLoading(true);
+      const isValidOption = await contract.methods.validOption(option).call();
+      if (!isValidOption) {
+        setErrorMessage("Invalid option for voting.");
+        setLoading(false);
+        return;
+      }
+      await contract.methods.vote(option).send({ from: account });
+      alert(`You voted for ${option}`);
+      setErrorMessage("");
+      optionInput.value = ""; // Clear the input field
+      setVoteCounts((prevCounts) => ({
+        ...prevCounts,
+        [option]: (parseInt(prevCounts[option]) || 0) + 1,
+      }));
+    } catch (error) {
+      setErrorMessage("Error voting, please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGetVotes = async () => {
+    const option = document.getElementById("getVotesOption").value;
+    if (!option) {
+      setErrorMessage("Please enter an option to get votes.");
+      return;
+    }
+    try {
+      const votes = await contract.methods.getVoteCount(option).call();
+      alert(`Vote count for ${option}: ${votes}`);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage("Failed to retrieve vote count.");
+    }
+  };
+
+  return (
+    <div className="container">
+      <h1>Voting DApp</h1>
+      <input type="text" id="voteOption" placeholder="Enter option to vote" />
+      <button onClick={handleVote} disabled={loading}>
+        {loading ? <span className="loader"></span> : "Vote"}
+      </button>
+      <input
+        type="text"
+        id="getVotesOption"
+        placeholder="Enter option to get votes"
+      />
+      <button onClick={handleGetVotes}>Get Votes</button>
+      {errorMessage && <div className="error">{errorMessage}</div>}
+      <div className="options-list">
+        <h3>Available Options</h3>
+        <ul>
+          {options.map((option, index) => (
+            <li key={index}>
+              <span>{option}</span>
+              <span className="float-end">{voteCounts[option] || 0} Votes</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
